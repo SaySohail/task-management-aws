@@ -78,7 +78,7 @@ export const StickyScroll = ({
             return (
               <div
                 key={item.title + index}
-                ref={(el) => (itemRefs.current[index] = el)}
+                ref={(el) => { itemRefs.current[index] = el; }}
                 className="lg:snap-start py-10 md:py-16"
               >
                 <motion.h2
