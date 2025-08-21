@@ -39,16 +39,10 @@ export default function SidebarComponent() {
     }
   }, [user, setUser]);
 
-  // Stable avatar config using a seed based on user email (avoids hydration flicker)
+  // Stable avatar config (avoids hydration flicker)
   const avatarConfig = useMemo(
-    () =>
-      genConfig({
-        seed: user?.email || "guest",
-        shape: "circle", // keeps it consistent with your design
-        // you can also set fixed traits if you want:
-        // sex: "man" | "woman",
-      }),
-    [user?.email]
+    () => genConfig(),
+    []
   );
 
   const displayName = user?.name || "Guest";
@@ -134,7 +128,6 @@ export default function SidebarComponent() {
                     {...avatarConfig}
                     // react-nice-avatar sizes are set via style (className won't size it)
                     style={{ width: 28, height: 28 }}
-                    title={displayName}
                   />
                 </span>
               }
