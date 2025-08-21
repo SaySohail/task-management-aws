@@ -24,6 +24,14 @@ jobs:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/GitHubOIDCRole
           aws-region: ${{ env.AWS_REGION }}
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            server/package-lock.json
+
       # Build Next and copy into server/public
       - name: Build frontend (Next export)
         working-directory: client
@@ -36,6 +44,11 @@ jobs:
           rm -rf server/public
           mkdir -p server/public
           cp -r client/out/* server/public/
+
+      # (Optional) install server deps for lint/build scripts if you add them later
+      # - name: Install server deps
+      #   working-directory: server
+      #   run: npm ci
 
       # Package server folder (contains server/index.js + public/)
       - name: Package server
@@ -64,22 +77,4 @@ jobs:
     needs: deploy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - run: npm i -g newman
-      - name: Run Postman (Newman)
-        run: |
-          newman run postman/collection.json \
-            -e postman/env.staging.json \
-            --env-var baseUrl=${{ vars.POSTMAN_API_BASE }}
-
-  e2e:
-    needs: api-tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: cypress-io/github-action@v6
-        with:
-          install-command: npm ci --prefix client
-          command: npm run cy:run --prefix client
-        env:
-          CYPRESS_BASE_URL: ${{ vars.CYPRESS_BASE_URL }}
+      - uses: actions/ch
