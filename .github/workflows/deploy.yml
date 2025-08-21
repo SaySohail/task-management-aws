@@ -77,4 +77,30 @@ jobs:
     needs: deploy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/ch
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm i -g newman
+      - name: Run Postman (Newman)
+        run: |
+          newman run postman/collection.json \
+            -e postman/env.staging.json \
+            --env-var baseUrl=${{ vars.POSTMAN_API_BASE }}
+
+  e2e:
+    needs: api-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - uses: cypress-io/github-action@v6
+        with:
+          install-command: npm ci --prefix client
+          command: npm run cy:run --prefix client
+        env:
+          CYPRESS_BASE_URL: ${{ vars.CYPRESS_BASE_URL }}
