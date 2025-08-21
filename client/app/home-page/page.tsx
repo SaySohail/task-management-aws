@@ -18,7 +18,7 @@ import {
   MobileNavMenu,
 } from "@/components/ui/resizable-navbar";
 
-export function HeroSectionOne() {
+export default function HeroSectionOne() {
   const navItems = [
     { name: "Templates", link: "#templates" },
     { name: "Docs", link: "#docs" },
@@ -245,4 +245,3 @@ const FeatureCard = ({ title, description, icon }) => {
   );
 };
 
-export default HeroSectionOne;
