@@ -231,7 +231,12 @@ export default function HeroSectionOne() {
   );
 }
 
-const FeatureCard = ({ title, description, icon }) => {
+interface FeatureCardProps {
+  title: string
+  description: string
+  icon: React.ReactNode
+}
+const FeatureCard = ({ title, description, icon }: FeatureCardProps) => {
   return (
     <motion.div
       whileHover={{ y: -5 }}
