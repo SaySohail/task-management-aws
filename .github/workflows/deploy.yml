@@ -1,0 +1,85 @@
+name: Deploy & Test
+on:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      RELEASES_BUCKET: ${{ vars.RELEASES_BUCKET }}
+      EB_APP: ${{ vars.EB_APP_NAME }}
+      EB_ENV: ${{ vars.EB_ENV_NAME }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/GitHubOIDCRole
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Build Next and copy into server/public
+      - name: Build frontend (Next export)
+        working-directory: client
+        run: |
+          npm ci
+          npm run build   # -> client/out
+
+      - name: Prepare server/public
+        run: |
+          rm -rf server/public
+          mkdir -p server/public
+          cp -r client/out/* server/public/
+
+      # Package server folder (contains server/index.js + public/)
+      - name: Package server
+        working-directory: server
+        run: zip -r ../server-${{ github.sha }}.zip . -x "node_modules/*" ".git/*"
+
+      # Upload to artifacts bucket
+      - name: Upload app version to S3
+        run: aws s3 cp server-${{ github.sha }}.zip s3://$RELEASES_BUCKET/releases/
+
+      # EB: create app version + deploy
+      - name: Create EB application version
+        run: |
+          aws elasticbeanstalk create-application-version \
+            --application-name "$EB_APP" \
+            --version-label "${{ github.sha }}" \
+            --source-bundle S3Bucket=$RELEASES_BUCKET,S3Key=releases/server-${{ github.sha }}.zip
+
+      - name: Deploy to EB environment
+        run: |
+          aws elasticbeanstalk update-environment \
+            --environment-name "$EB_ENV" \
+            --version-label "${{ github.sha }}"
+
+  api-tests:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm i -g newman
+      - name: Run Postman (Newman)
+        run: |
+          newman run postman/collection.json \
+            -e postman/env.staging.json \
+            --env-var baseUrl=${{ vars.POSTMAN_API_BASE }}
+
+  e2e:
+    needs: api-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cypress-io/github-action@v6
+        with:
+          install-command: npm ci --prefix client
+          command: npm run cy:run --prefix client
+        env:
+          CYPRESS_BASE_URL: ${{ vars.CYPRESS_BASE_URL }}

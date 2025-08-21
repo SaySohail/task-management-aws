@@ -1,0 +1,63 @@
+{
+  "info": { "name": "Task API", "_postman_id": "uuid", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json" },
+  "variable": [{ "key": "baseUrl", "value": "{{baseUrl}}" }],
+  "item": [
+    {
+      "name": "Register",
+      "request": { "method": "POST", "url": "{{baseUrl}}/auth/register",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"email\":\"test+ci@example.com\",\"password\":\"Passw0rd!\"}" }
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "exec": [
+          "pm.test('201 Created', () => pm.response.code === 201);"
+        ], "type": "text/javascript" }
+      }]
+    },
+    {
+      "name": "Login",
+      "request": { "method": "POST", "url": "{{baseUrl}}/auth/login",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"email\":\"test+ci@example.com\",\"password\":\"Passw0rd!\"}" }
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "exec": [
+          "pm.test('200 OK', () => pm.response.code === 200);",
+          "pm.environment.set('token', pm.response.json().token);"
+        ], "type": "text/javascript" }
+      }]
+    },
+    {
+      "name": "Create Task",
+      "request": { "method": "POST", "url": "{{baseUrl}}/tasks",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "body": { "mode": "raw", "raw": "{\"title\":\"CI task\"}" }
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "exec": [
+          "pm.test('201 Created', () => pm.response.code === 201);",
+          "pm.environment.set('taskId', pm.response.json()._id);"
+        ], "type": "text/javascript" }
+      }]
+    },
+    {
+      "name": "List Tasks",
+      "request": { "method": "GET", "url": "{{baseUrl}}/tasks",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "exec": [
+          "pm.test('200 OK', () => pm.response.code === 200);",
+          "pm.expect(Array.isArray(pm.response.json())).to.be.true;"
+        ], "type": "text/javascript" }
+      }]
+    }
+  ]
+}
