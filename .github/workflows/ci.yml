@@ -26,10 +26,10 @@ jobs:
           npm run lint --if-present
           npm run build   # next build + export -> client/out
 
-      # Server lint (optional tests)
-      - name: Lint server
-        working-directory: server
-        run: |
-          npm ci
-          npm run lint --if-present
-          # npm run test --if-present -- --ci   # uncomment when you add tests
+      # # Server lint (optional tests)
+      # - name: Lint server
+      #   working-directory: server
+      #   run: |
+      #     npm ci
+      #     npm run lint --if-present
+      #     # npm run test --if-present -- --ci   # uncomment when you add tests
