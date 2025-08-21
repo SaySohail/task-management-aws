@@ -1,7 +1,7 @@
 name: Deploy & Test
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:
@@ -25,85 +25,76 @@ jobs:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/GitHubOIDCRole
           aws-region: ${{ env.AWS_REGION }}
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
+          node-version: "20"
+          cache: "npm"
           cache-dependency-path: |
             client/package-lock.json
             server/package-lock.json
 
-      # --- Build frontend (static export is controlled by next.config's output: "export")
       - name: Build frontend
         working-directory: client
         run: |
-          set -euo pipefail
           npm ci
-          npm run build   # emits to client/out
+          npm run build
 
       - name: Prepare server/public
         run: |
-          set -euo pipefail
           rm -rf server/public
           mkdir -p server/public
           cp -r client/out/* server/public/
 
-      # - name: Install server deps (optional if you have build steps in server)
-      #   working-directory: server
-      #   run: npm ci
-
       - name: Package backend (server)
         working-directory: server
         run: |
-          set -euo pipefail
           zip -r ../server-${{ github.sha }}.zip . -x "node_modules/*" ".git/*"
 
-      - name: Sanity: show settings
+      - name: Sanity print settings
+        shell: bash
         run: |
-          echo "Region: $AWS_REGION"
-          echo "Bucket: $RELEASES_BUCKET"
-          echo "App:    $EB_APP"
-          echo "Env:    $EB_ENV"
-          echo "Zip:    server-${{ github.sha }}.zip"
+          echo "Region=${AWS_REGION}"
+          echo "Bucket=${RELEASES_BUCKET}"
+          echo "App=${EB_APP}"
+          echo "Env=${EB_ENV}"
+          echo "Zip=server-${GITHUB_SHA}.zip"
 
       - name: Upload app version to S3
         run: |
-          set -euo pipefail
           aws s3 cp server-${{ github.sha }}.zip s3://$RELEASES_BUCKET/releases/
 
-      - name: Sanity: object exists in S3
+      - name: Verify S3 object exists
         run: |
-          set -euo pipefail
           aws s3 ls s3://$RELEASES_BUCKET/releases/server-${{ github.sha }}.zip
 
       - name: Create EB application version
         run: |
-          set -euo pipefail
           aws elasticbeanstalk create-application-version \
             --application-name "$EB_APP" \
             --version-label "${{ github.sha }}" \
             --source-bundle S3Bucket=$RELEASES_BUCKET,S3Key=releases/server-${{ github.sha }}.zip
 
-      # ⏳ Wait until EB lists the version (eventual consistency)
       - name: Wait for EB to register version
+        shell: bash
         run: |
-          set -euo pipefail
-          for i in {1..30}; do
+          for i in $(seq 1 30); do
             STATUS=$(aws elasticbeanstalk describe-application-versions \
               --application-name "$EB_APP" \
               --version-labels "${{ github.sha }}" \
-              --query 'ApplicationVersions[0].Status' --output text 2>/dev/null || echo "MISSING")
+              --query 'ApplicationVersions[0].Status' \
+              --output text 2>/dev/null || echo "MISSING")
             echo "EB version status: $STATUS"
-            # If it's returned at all (UNPROCESSED or PROCESSED), we can proceed
-            if [ "$STATUS" != "None" ] && [ "$STATUS" != "MISSING" ] && [ "$STATUS" != "null" ]; then
-              break
+            if [[ "$STATUS" != "None" && "$STATUS" != "MISSING" && "$STATUS" != "null" ]]; then
+              exit 0
             fi
             sleep 5
           done
+          echo "Timed out waiting for EB to register version" >&2
+          exit 1
 
       - name: Deploy to EB environment
         run: |
-          set -euo pipefail
           aws elasticbeanstalk update-environment \
             --environment-name "$EB_ENV" \
             --version-label "${{ github.sha }}"
@@ -115,7 +106,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: "20"
       - run: npm i -g newman
       - name: Run Postman (Newman)
         run: |
@@ -130,8 +121,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
+          node-version: "20"
+          cache: "npm"
           cache-dependency-path: client/package-lock.json
       - uses: cypress-io/github-action@v6
         with:
