@@ -104,3 +104,4 @@ jobs:
           command: npm run cy:run --prefix client
         env:
           CYPRESS_BASE_URL: ${{ vars.CYPRESS_BASE_URL }}
+ 
