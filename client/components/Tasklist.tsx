@@ -95,7 +95,7 @@ const Tasklist = () => {
     }
   };
 
-  const isOverdue = (dueDate: Date | null) => {
+  const isOverdue = (dueDate: Date | null | undefined) => {
     if (!dueDate) return false;
     return new Date(dueDate) < new Date();
   };
