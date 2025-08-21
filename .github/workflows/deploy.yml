@@ -71,9 +71,11 @@ jobs:
 
       - name: Create EB application version
         run: |
+          VERSION_LABEL="${{ github.sha }}-${{ github.run_number }}"
+          echo "VERSION_LABEL=$VERSION_LABEL" >> $GITHUB_ENV
           aws elasticbeanstalk create-application-version \
             --application-name "$EB_APP" \
-            --version-label "${{ github.sha }}" \
+            --version-label "$VERSION_LABEL" \
             --source-bundle S3Bucket=$RELEASES_BUCKET,S3Key=releases/server-${{ github.sha }}.zip
 
       - name: Wait for EB to register version
@@ -83,28 +85,27 @@ jobs:
           for i in $(seq 1 30); do
             STATUS=$(aws elasticbeanstalk describe-application-versions \
               --application-name "$EB_APP" \
-              --version-labels "${{ github.sha }}" \
+              --version-labels "$VERSION_LABEL" \
               --query 'ApplicationVersions[0].Status' \
               --output text 2>/dev/null || echo "MISSING")
             echo "EB version status: $STATUS"
             if [[ "$STATUS" == "FAILED" ]]; then
-              echo "EB reported FAILED for version ${{ github.sha }}" >&2
+              echo "EB reported FAILED for version $VERSION_LABEL" >&2
               exit 1
             fi
             if [[ "$STATUS" == "PROCESSED" || "$STATUS" == "UNPROCESSED" ]]; then
-              # It's registered (UNPROCESSED is fine; EB will process on deploy)
               exit 0
             fi
             sleep 5
           done
-          echo "Timed out waiting for EB to register version ${{ github.sha }}" >&2
+          echo "Timed out waiting for EB to register version $VERSION_LABEL" >&2
           exit 1
 
       - name: Deploy to EB environment
         run: |
           aws elasticbeanstalk update-environment \
             --environment-name "$EB_ENV" \
-            --version-label "${{ github.sha }}"
+            --version-label "$VERSION_LABEL"
 
   api-tests:
     needs: deploy
