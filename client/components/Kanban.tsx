@@ -248,7 +248,7 @@ const StatusChangeModal: React.FC<{
               Move Task
             </h3>
             <p className="mt-1 line-clamp-2 text-xs sm:text-sm text-slate-700 dark:text-slate-300">
-              "{task.title}"
+              {task.title}
             </p>
           </div>
 
