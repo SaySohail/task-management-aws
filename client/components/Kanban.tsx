@@ -134,7 +134,7 @@ const MobileTaskCard: React.FC<MobileTaskCardProps> = ({ task, index, columnId }
                   <button
                     key={status}
                     onClick={() => {
-                      updateTask(task._id, { ...task, status: status as TaskStatus });
+                      updateTask({ ...task, status: status as TaskStatus });
                       setShowStatusModal(false);
                     }}
                     className={`flex items-center justify-between rounded-md px-3 py-2 text-left text-sm transition-colors
@@ -176,16 +176,20 @@ export default function Kanban() {
     }, {});
   }, [tasks]);
 
-  const onDragEnd = (result: DropResult) => {
-    if (!result.destination) return;
-    const { draggableId, destination } = result;
-    const task = tasks.find((t) => t._id === draggableId);
-    if (!task) return;
-    const newStatus = destination.droppableId as TaskStatus;
-    if (task.status !== newStatus) {
-      updateTask(draggableId, { ...task, status: newStatus });
-    }
-  };
+const onDragEnd = (result: DropResult) => {
+  if (!result.destination) return;
+
+  const { draggableId, destination } = result;
+  const task = tasks.find((t) => t._id === draggableId);
+  if (!task) return;
+
+  const newStatus = destination.droppableId as TaskStatus;
+
+  if (task.status !== newStatus) {
+    updateTask({ ...task, status: newStatus });
+  
+  }
+};
 
   return (
     <div className="flex h-full w-full flex-col">
