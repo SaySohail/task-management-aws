@@ -127,8 +127,8 @@ jobs:
             echo "Environment Status: $ENV_STATUS, Health: $ENV_HEALTH"
             
             # Check if deployment failed
-            if [[ "$ENV_STATUS" == "Ready" && "$ENV_HEALTH" == "Severe" ]]; then
-              echo "❌ Deployment failed - Environment is Ready but Health is Severe"
+            if [[ "$ENV_STATUS" == "Ready" && ("$ENV_HEALTH" == "Severe" || "$ENV_HEALTH" == "Red") ]]; then
+              echo "❌ Deployment failed - Environment is Ready but Health is $ENV_HEALTH"
               
               # Get recent events to show what went wrong
               echo "Recent events:"
@@ -142,7 +142,7 @@ jobs:
             fi
             
             # Check if deployment succeeded
-            if [[ "$ENV_STATUS" == "Ready" && ("$ENV_HEALTH" == "Ok" || "$ENV_HEALTH" == "Info") ]]; then
+            if [[ "$ENV_STATUS" == "Ready" && ("$ENV_HEALTH" == "Ok" || "$ENV_HEALTH" == "Info" || "$ENV_HEALTH" == "Green") ]]; then
               echo "✅ Deployment completed successfully!"
               
               # Verify the version was deployed
@@ -161,11 +161,13 @@ jobs:
               fi
             fi
             
-            # Still deploying
+            # Still deploying or other states
             if [[ "$ENV_STATUS" == "Updating" ]]; then
               echo "🔄 Deployment in progress..."
+            elif [[ "$ENV_STATUS" == "Ready" && ("$ENV_HEALTH" == "Yellow" || "$ENV_HEALTH" == "Warning") ]]; then
+              echo "⚠️  Environment is Ready but health is $ENV_HEALTH - continuing to wait..."
             else
-              echo "⚠️  Unexpected status: $ENV_STATUS"
+              echo "⚠️  Status: $ENV_STATUS, Health: $ENV_HEALTH - continuing to monitor..."
             fi
             
             sleep 30
