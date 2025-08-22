@@ -51,60 +51,31 @@ jobs:
         working-directory: server
         run: |
           # Clean up any existing .ebextensions that might cause conflicts
-          rm -rf .ebextensions
+          rm -rf .ebextensions .platform
           
-          # Create .platform hooks directory
-          mkdir -p .platform/hooks/prebuild
-          
-          # Create Node.js installation hook
-          cat > .platform/hooks/prebuild/01_install_node.sh << 'EOF'
-          #!/bin/bash
-          set -e
-          
-          echo "=== Installing Node.js 20 via nvm ==="
-          
-          # Install nvm if not present
-          if [ ! -d "$HOME/.nvm" ]; then
-              curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
-          fi
-          
-          # Source nvm
-          export NVM_DIR="$HOME/.nvm"
-          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-          
-          # Install and use Node.js 20
-          nvm install 20
-          nvm use 20
-          nvm alias default 20
-          
-          echo "Node version after install: $(node --version)"
-          echo "NPM version after install: $(npm --version)"
-          
-          # Also create .nvmrc as fallback
-          echo "20" > /var/app/staging/.nvmrc
-          
-          echo "=== Node.js 20 installation complete ==="
-          EOF
-          
-          # Make the hook executable
-          chmod +x .platform/hooks/prebuild/01_install_node.sh
-          
-          # Create .nvmrc as additional fallback
+          # Just use .nvmrc - simplest approach
           echo "20" > .nvmrc
+          
+          # Update package.json to be more explicit about Node version
+          # This creates a temporary package.json with explicit version
+          node -e "
+            const pkg = require('./package.json');
+            pkg.engines = { 'node': '20.x', 'npm': '>=10.0.0' };
+            require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2));
+          "
 
       - name: Verify deployment structure
         working-directory: server
         run: |
           echo "=== Server directory structure ==="
           ls -la
-          echo "=== Platform hooks ==="
-          ls -la .platform/hooks/prebuild/ || echo "No prebuild hooks found"
-          echo "=== Hook content ==="
-          cat .platform/hooks/prebuild/01_install_node.sh || echo "No hook file found"
           echo "=== .nvmrc content ==="
           cat .nvmrc || echo "No .nvmrc found"
-          echo "=== Checking for any .ebextensions ==="
+          echo "=== Updated package.json engines ==="
+          node -e "console.log('Engines:', require('./package.json').engines)"
+          echo "=== Checking for any .ebextensions or .platform ==="
           ls -la .ebextensions/ 2>/dev/null || echo "No .ebextensions directory (good)"
+          ls -la .platform/ 2>/dev/null || echo "No .platform directory"
 
       - name: Package backend (server)
         working-directory: server
