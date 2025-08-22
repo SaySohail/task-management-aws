@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-DOMAIN="${CERTBOT_DOMAIN:-tasks.sayedsohail.com}"
-EMAIL="${CERTBOT_EMAIL:?Set CERTBOT_EMAIL in EB -> Configuration -> Software}"
+DOMAIN="tasks.sayedsohail.com"
+EMAIL="sohail.aws.peerzade@gmail.com"
 ACME_WEBROOT="/var/www/letsencrypt"
 NGINX_DIR="/etc/nginx/conf.d"
 HTTP_TMPL="/var/app/current/.platform/nginx/conf.d/00_http.conf.template"
