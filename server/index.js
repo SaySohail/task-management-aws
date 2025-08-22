@@ -1,3 +1,4 @@
+// server/index.js
 require("dotenv").config();
 const express = require("express");
 const app = express();
@@ -28,12 +29,11 @@ app.use(express.static(publicDir, { maxAge: "1h", index: false }));
 
 app.get("*", (req, res) => {
   res.sendFile(path.join(publicDir, "404.html"), (err) => {
-    if (err) res.sendFile(path.join(publicDir, "index.html")); // fallback
+    if (err) res.sendFile(path.join(publicDir, "index.html"));
   });
 });
 
-// server listen (ONLY ONCE)
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 8081;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`✅ Server running on http://0.0.0.0:${PORT}`);
 });

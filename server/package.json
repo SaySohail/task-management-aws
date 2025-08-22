@@ -9,7 +9,8 @@
     "test": "echo \"(optional)\""
   },
   "engines": {
-    "node": ">=20"
+    "node": "20.x",
+    "npm": ">=10.0.0"
   },
   "keywords": [],
   "author": "",
