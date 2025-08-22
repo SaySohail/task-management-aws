@@ -1,7 +1,7 @@
-# HTTP only (initially). ACME lives here; rest proxies to Node.
+# Rendered by postdeploy. Provides HTTP for ACME and (optionally) app/redirect.
 server {
   listen 80;
-  server_name tasks.sayedsohail.com;
+  server_name __DOMAIN__;
 
   # ACME HTTP-01 challenge
   location ^~ /.well-known/acme-challenge/ {
@@ -10,9 +10,10 @@ server {
     allow all;
   }
 
-  # App (no redirect; keep site available even before cert)
+  # While setting up / renewing certs, keep HTTP serving the app
+  # (After HTTPS works, you can switch this to a redirect.)
   location / {
-    proxy_pass http://127.0.0.1:8081;
+    proxy_pass http://127.0.0.1:__PORT__;
     proxy_http_version 1.1;
     proxy_set_header Connection "";
     proxy_set_header Host              $host;
