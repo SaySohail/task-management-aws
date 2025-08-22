@@ -56,11 +56,12 @@ jobs:
           # Just use .nvmrc - simplest approach
           echo "20" > .nvmrc
           
-          # Update package.json to be more explicit about Node version
-          # This creates a temporary package.json with explicit version
+          # Fix the main issue: Update package.json start script for EB deployment
+          # In EB, the server directory IS the root, so "server/index.js" becomes "index.js"
           node -e "
             const pkg = require('./package.json');
             pkg.engines = { 'node': '20.x', 'npm': '>=10.0.0' };
+            pkg.scripts.start = 'node index.js';  // Remove 'server/' prefix
             require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2));
           "
 
@@ -71,8 +72,12 @@ jobs:
           ls -la
           echo "=== .nvmrc content ==="
           cat .nvmrc || echo "No .nvmrc found"
+          echo "=== Updated package.json start script ==="
+          node -e "console.log('Start script:', require('./package.json').scripts.start)"
           echo "=== Updated package.json engines ==="
           node -e "console.log('Engines:', require('./package.json').engines)"
+          echo "=== Verifying index.js exists ==="
+          ls -la index.js || echo "❌ index.js not found!"
           echo "=== Checking for any .ebextensions or .platform ==="
           ls -la .ebextensions/ 2>/dev/null || echo "No .ebextensions directory (good)"
           ls -la .platform/ 2>/dev/null || echo "No .platform directory"
