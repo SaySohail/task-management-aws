@@ -107,6 +107,73 @@ jobs:
             --environment-name "$EB_ENV" \
             --version-label "$VERSION_LABEL"
 
+      - name: Wait for deployment to complete
+        shell: bash
+        run: |
+          set -e
+          echo "Waiting for deployment to complete..."
+          
+          for i in $(seq 1 60); do  # Wait up to 30 minutes (60 * 30 seconds)
+            ENV_STATUS=$(aws elasticbeanstalk describe-environments \
+              --environment-names "$EB_ENV" \
+              --query 'Environments[0].Status' \
+              --output text 2>/dev/null || echo "ERROR")
+              
+            ENV_HEALTH=$(aws elasticbeanstalk describe-environments \
+              --environment-names "$EB_ENV" \
+              --query 'Environments[0].Health' \
+              --output text 2>/dev/null || echo "ERROR")
+            
+            echo "Environment Status: $ENV_STATUS, Health: $ENV_HEALTH"
+            
+            # Check if deployment failed
+            if [[ "$ENV_STATUS" == "Ready" && "$ENV_HEALTH" == "Severe" ]]; then
+              echo "❌ Deployment failed - Environment is Ready but Health is Severe"
+              
+              # Get recent events to show what went wrong
+              echo "Recent events:"
+              aws elasticbeanstalk describe-events \
+                --environment-name "$EB_ENV" \
+                --start-time $(date -d '10 minutes ago' -Iseconds) \
+                --query 'Events[?Severity==`ERROR`].[EventDate,Message]' \
+                --output table
+              
+              exit 1
+            fi
+            
+            # Check if deployment succeeded
+            if [[ "$ENV_STATUS" == "Ready" && ("$ENV_HEALTH" == "Ok" || "$ENV_HEALTH" == "Info") ]]; then
+              echo "✅ Deployment completed successfully!"
+              
+              # Verify the version was deployed
+              DEPLOYED_VERSION=$(aws elasticbeanstalk describe-environments \
+                --environment-names "$EB_ENV" \
+                --query 'Environments[0].VersionLabel' \
+                --output text)
+              echo "Deployed version: $DEPLOYED_VERSION"
+              
+              if [[ "$DEPLOYED_VERSION" == "$VERSION_LABEL" ]]; then
+                echo "✅ Correct version deployed: $VERSION_LABEL"
+                exit 0
+              else
+                echo "❌ Wrong version deployed. Expected: $VERSION_LABEL, Got: $DEPLOYED_VERSION"
+                exit 1
+              fi
+            fi
+            
+            # Still deploying
+            if [[ "$ENV_STATUS" == "Updating" ]]; then
+              echo "🔄 Deployment in progress..."
+            else
+              echo "⚠️  Unexpected status: $ENV_STATUS"
+            fi
+            
+            sleep 30
+          done
+          
+          echo "❌ Deployment timed out after 30 minutes"
+          exit 1
+
   api-tests:
     needs: deploy
     runs-on: ubuntu-latest
@@ -144,4 +211,3 @@ jobs:
           command: npm run cy:run --prefix client
         env:
           CYPRESS_BASE_URL: ${{ vars.CYPRESS_BASE_URL }}
-
