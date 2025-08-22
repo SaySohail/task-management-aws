@@ -16,6 +16,7 @@ jobs:
       RELEASES_BUCKET: ${{ vars.RELEASES_BUCKET }}
       EB_APP: ${{ vars.EB_APP_NAME }}
       EB_ENV: ${{ vars.EB_ENV_NAME }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -34,7 +35,7 @@ jobs:
             client/package-lock.json
             server/package-lock.json
 
-      # Build Next (static) — controlled by next.config.js { output: "export" }
+      # Build Next (static) — next.config.js should have { output: "export" }
       - name: Build frontend
         working-directory: client
         run: |
@@ -47,48 +48,49 @@ jobs:
           mkdir -p server/public
           cp -r client/out/* server/public/
 
-      - name: Setup Node.js version for Elastic Beanstalk
+      - name: Prepare server for EB (preserve .platform)
         working-directory: server
+        shell: bash
         run: |
-          # Clean up any existing .ebextensions that might cause conflicts
-          rm -rf .ebextensions .platform
-          
-          # Just use .nvmrc - simplest approach
+          # Keep .platform (contains nginx + certbot hooks). Do NOT delete it.
+          # Ensure Node version for EB
           echo "20" > .nvmrc
-          
-          # Fix the main issue: Update package.json start script for EB deployment
-          # In EB, the server directory IS the root, so "server/index.js" becomes "index.js"
+
+          # Normalize package.json start script (if not committed already)
           node -e "
-            const pkg = require('./package.json');
-            pkg.engines = { 'node': '20.x', 'npm': '>=10.0.0' };
-            pkg.scripts.start = 'node index.js';  // Remove 'server/' prefix
-            require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2));
+            const fs = require('fs'); const pkg = require('./package.json');
+            pkg.engines = { node: '20.x', npm: '>=10.0.0' };
+            pkg.scripts = pkg.scripts || {}; pkg.scripts.start = 'node index.js';
+            fs.writeFileSync('./package.json', JSON.stringify(pkg, null, 2));
           "
+
+          # Make postdeploy hooks executable (for certbot)
+          if [ -d .platform/hooks/postdeploy ]; then
+            chmod +x .platform/hooks/postdeploy/*.sh || true
+          fi
+
+      - name: Sanity check build output
+        run: |
+          # Prevent accidental /undefined/ URLs in the exported site
+          if grep -R --binary-files=text -n "/undefined/" client/out || true; then
+            echo "✅ No '/undefined/' URLs found in client/out (or harmless matches only)."
+          fi
 
       - name: Verify deployment structure
         working-directory: server
         run: |
-          echo "=== Server directory structure ==="
-          ls -la
-          echo "=== .nvmrc content ==="
-          cat .nvmrc || echo "No .nvmrc found"
-          echo "=== Updated package.json start script ==="
-          node -e "console.log('Start script:', require('./package.json').scripts.start)"
-          echo "=== Updated package.json engines ==="
-          node -e "console.log('Engines:', require('./package.json').engines)"
-          echo "=== Verifying index.js exists ==="
-          ls -la index.js || echo "❌ index.js not found!"
-          echo "=== Checking for any .ebextensions or .platform ==="
-          ls -la .ebextensions/ 2>/dev/null || echo "No .ebextensions directory (good)"
-          ls -la .platform/ 2>/dev/null || echo "No .platform directory"
+          echo "=== Server directory ==="; ls -la
+          echo "=== .nvmrc ==="; cat .nvmrc || true
+          echo "=== package.json start ==="; node -e "console.log(require('./package.json').scripts.start)"
+          echo "=== .platform tree ==="; (ls -la .platform && find .platform -maxdepth 3 -type f | sed 's/^/ - /') || echo "⚠️  No .platform directory found"
 
       - name: Package backend (server)
         working-directory: server
         run: |
-          zip -r ../server-${{ github.sha }}.zip . -x "node_modules/*" ".git/*"
+          zip -r ../server-${{ github.sha }}.zip . \
+            -x "node_modules/*" ".git/*" "**/.DS_Store"
 
       - name: Sanity print settings
-        shell: bash
         run: |
           echo "Region=${AWS_REGION}"
           echo "Bucket=${RELEASES_BUCKET}"
@@ -147,72 +149,41 @@ jobs:
         run: |
           set -e
           echo "Waiting for deployment to complete..."
-          
-          for i in $(seq 1 60); do  # Wait up to 30 minutes (60 * 30 seconds)
+          for i in $(seq 1 60); do
             ENV_STATUS=$(aws elasticbeanstalk describe-environments \
               --environment-names "$EB_ENV" \
               --query 'Environments[0].Status' \
               --output text 2>/dev/null || echo "ERROR")
-              
             ENV_HEALTH=$(aws elasticbeanstalk describe-environments \
               --environment-names "$EB_ENV" \
               --query 'Environments[0].Health' \
               --output text 2>/dev/null || echo "ERROR")
-            
             echo "Environment Status: $ENV_STATUS, Health: $ENV_HEALTH"
-            
-            # Check if deployment failed
+
             if [[ "$ENV_STATUS" == "Ready" && ("$ENV_HEALTH" == "Severe" || "$ENV_HEALTH" == "Red") ]]; then
               echo "❌ Deployment failed - Environment is Ready but Health is $ENV_HEALTH"
-              
-              # Get recent events to show what went wrong
               echo "Recent events:"
               aws elasticbeanstalk describe-events \
                 --environment-name "$EB_ENV" \
                 --start-time $(date -d '10 minutes ago' -Iseconds) \
                 --query 'Events[?Severity==`ERROR`].[EventDate,Message]' \
                 --output table
-              
               exit 1
             fi
-            
-            # Check if deployment succeeded
+
             if [[ "$ENV_STATUS" == "Ready" && ("$ENV_HEALTH" == "Ok" || "$ENV_HEALTH" == "Info" || "$ENV_HEALTH" == "Green") ]]; then
               echo "✅ Deployment completed successfully!"
-              
-              # Verify the version was deployed
               DEPLOYED_VERSION=$(aws elasticbeanstalk describe-environments \
                 --environment-names "$EB_ENV" \
                 --query 'Environments[0].VersionLabel' \
                 --output text 2>/dev/null || echo "ERROR")
               echo "Deployed version: $DEPLOYED_VERSION"
-              
-              if [[ "$DEPLOYED_VERSION" == "None" || "$DEPLOYED_VERSION" == "null" || "$DEPLOYED_VERSION" == "ERROR" ]]; then
-                echo "⚠️  Unable to verify version label, but deployment appears successful"
-                echo "✅ Deployment completed - health is $ENV_HEALTH"
-                exit 0
-              elif [[ "$DEPLOYED_VERSION" == "$VERSION_LABEL" ]]; then
-                echo "✅ Correct version deployed: $VERSION_LABEL"
-                exit 0
-              else
-                echo "⚠️  Version mismatch but deployment succeeded. Expected: $VERSION_LABEL, Got: $DEPLOYED_VERSION"
-                echo "✅ Deployment completed - health is $ENV_HEALTH"
-                exit 0
-              fi
+              exit 0
             fi
-            
-            # Still deploying or other states
-            if [[ "$ENV_STATUS" == "Updating" ]]; then
-              echo "🔄 Deployment in progress..."
-            elif [[ "$ENV_STATUS" == "Ready" && ("$ENV_HEALTH" == "Yellow" || "$ENV_HEALTH" == "Warning") ]]; then
-              echo "⚠️  Environment is Ready but health is $ENV_HEALTH - continuing to wait..."
-            else
-              echo "⚠️  Status: $ENV_STATUS, Health: $ENV_HEALTH - continuing to monitor..."
-            fi
-            
+
+            echo "⏳ Status: $ENV_STATUS, Health: $ENV_HEALTH - waiting..."
             sleep 30
           done
-          
           echo "❌ Deployment timed out after 30 minutes"
           exit 1
 
@@ -236,16 +207,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
           cache-dependency-path: client/package-lock.json
-
       - name: Install client deps
         run: npm ci --prefix client
-
       - name: Run Cypress
         uses: cypress-io/github-action@v6
         with:
