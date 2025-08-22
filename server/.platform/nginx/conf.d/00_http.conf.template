@@ -1,17 +1,18 @@
+# Rendered by postdeploy. Provides HTTP for ACME and app (you can later redirect to HTTPS).
 server {
   listen 80;
-  server_name tasks.sayedsohail.com;
+  server_name __DOMAIN__;
 
-  # ACME challenge (keep on HTTP)
+  # ACME HTTP-01 challenge
   location ^~ /.well-known/acme-challenge/ {
     root /var/www/letsencrypt;
     default_type "text/plain";
     allow all;
   }
 
-  # Serve the app over HTTP (you can later switch this to a redirect)
+  # Serve the app over HTTP (change to a redirect after HTTPS works)
   location / {
-    proxy_pass http://nodejs;   # ← use EB upstream, not a hardcoded port
+    proxy_pass http://127.0.0.1:__PORT__;
     proxy_http_version 1.1;
     proxy_set_header Connection "";
     proxy_set_header Host              $host;
