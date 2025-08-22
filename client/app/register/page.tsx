@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { AuroraBackground } from "@/components/ui/aurora-background";
+import { apiUrl } from "@/lib/api";
 
 
 type RegisterInfo = {
@@ -64,8 +65,8 @@ function Page() {
 
     try {
       setLoading(true);
-      const url = `${process.env.NEXT_PUBLIC_BASE_URL}/auth/register`;
-      const res = await fetch(url, {
+      // const url = `${process.env.NEXT_PUBLIC_BASE_URL}/auth/register`;
+      const res = await fetch(apiUrl("/auth/register"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(registerInfo),

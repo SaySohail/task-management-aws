@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
+import { apiUrl } from "@/lib/api";
 
 const AddTaskModal = () => {
   const { newTask, updateTask, setNewTask, addTask } = useTaskStore();
@@ -56,7 +57,7 @@ const AddTaskModal = () => {
 
       if (newTask._id) {
         // update
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/updatetask`, {
+        const res = await fetch(apiUrl("/api/updatetask"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ...newTask }),
@@ -68,7 +69,7 @@ const AddTaskModal = () => {
         notify("Task Updated", "Your changes have been saved.");
       } else {
         // add
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/addtask`, {
+        const res = await fetch(apiUrl("/api/addtask"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

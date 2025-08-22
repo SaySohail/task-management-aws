@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import EditDeleteMenu from "./EditDeleteMenu";
 import { useTaskStore } from "@/store/taskStore";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
+import { apiUrl } from "@/lib/api";
 
 /* ---------------------- responsive helpers ---------------------- */
 const useIsMobile = (breakpointPx = 1024) => {
@@ -360,8 +361,7 @@ const Kanban = () => {
 
   const updateTaskStatus = async (task: Task) => {
     try {
-      const url = `${process.env.NEXT_PUBLIC_BASE_URL}/api/updatetask`;
-      const response = await fetch(url, {
+      const response = await fetch(apiUrl("/api/updatetask"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...task, status: task.status }),

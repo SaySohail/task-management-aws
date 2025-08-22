@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useTaskStore } from "@/store/taskStore";
 import { useDashboardStore } from "@/store/dashboardStore";
 import Header from "./Header";
+import { apiUrl } from "@/lib/api";
+
 export function DashboardComponent() {
   const { user, setUser } = useDashboardStore();
   const { setTasks } = useTaskStore();
@@ -27,8 +29,8 @@ export function DashboardComponent() {
   useEffect(() => {
     const run = async () => {
       if (!user) return;
-      const url = `${process.env.NEXT_PUBLIC_BASE_URL}/api/alltasks`;
-      const res = await fetch(url, {
+      // const url = `${process.env.NEXT_PUBLIC_BASE_URL}/api/alltasks`;
+      const res = await fetch(apiUrl("/api/alltasks"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

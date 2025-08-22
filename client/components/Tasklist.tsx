@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, ArrowUpDown, Filter, X, AlertCircle } from "lucide-react";
+import { apiUrl } from "@/lib/api";
 
 const Tasklist = () => {
   const { toast } = useToast();
@@ -102,8 +103,8 @@ const Tasklist = () => {
 
   const handleStatusUpdate = async (task: any, newStatus: TaskStatus) => {
     try {
-      const url = `${process.env.NEXT_PUBLIC_BASE_URL}/api/updatetask`;
-      const response = await fetch(url, {
+      // const url = `${process.env.NEXT_PUBLIC_BASE_URL}/api/updatetask`;
+      const response = await fetch(apiUrl("/api/updatetask"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...task, status: newStatus }),

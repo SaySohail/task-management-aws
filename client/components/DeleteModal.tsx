@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useModalStore } from "@/store/modalStore";
 import { useTaskStore } from "@/store/taskStore";
 import {Dialog,DialogContent,DialogDescription,DialogFooter,DialogHeader,DialogTitle } from "./ui/dialog";
+import { apiUrl } from "@/lib/api";
 
 const DeleteModal = () => {
 
@@ -20,7 +21,7 @@ const DeleteModal = () => {
 
   const handleDeleteTask = async() => {
     if (taskToDelete) {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/deletetask`, {
+      const res = await fetch(apiUrl("/api/deletetask"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

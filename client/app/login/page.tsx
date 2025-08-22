@@ -13,6 +13,7 @@ import {
   IconBrandGithub,
   IconBrandGoogle,
 } from "@tabler/icons-react";
+import { apiUrl } from "@/lib/api";
 
 type LoginInfo = {
   email: string;
@@ -40,8 +41,8 @@ export default function Page() {
     if (loading) return;
     setLoading(true);
     try {
-      const url = `${process.env.NEXT_PUBLIC_BASE_URL}/auth/login`;
-      const res = await fetch(url, {
+      // const url = `${process.env.NEXT_PUBLIC_BASE_URL}/auth/login`;
+      const res = await fetch(apiUrl("/auth/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(loginInfo),
