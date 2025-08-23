@@ -18,8 +18,129 @@ A full-stack task management application with a modern **Next.js** UI and a **No
 
 ## 🏗️ Architecture
 
-> **Diagram:** Architecture diagram will be added to this repository
+> **Diagram:** 
+```mermaid
+flowchart LR
+  %% =========================
+  %% Direction & Styling
+  %% =========================
+  %% (Keep it minimal; default theme. Labels on edges.)
+  classDef legend fill:#f7f7f7,stroke:#ddd,color:#333;
+  classDef callout fill:#fff7e6,stroke:#f0c36d,color:#333;
+  classDef optional stroke-dasharray: 5 5;
 
+  %% =========================
+  %% Client
+  %% =========================
+  subgraph C[Client]
+    Browser[User / Browser (SPA)\nNext.js static export]
+  end
+  class C legend
+
+  %% =========================
+  %% DNS / CDN
+  %% =========================
+  subgraph D[DNS / CDN]
+    R53[Route 53 (DNS)\ntasks.sayedsohail.com\nCNAME → EB env CNAME]
+    CF[(CloudFront + ACM TLS)\n(optional, recommended for prod)]
+  end
+  class D legend
+
+  %% =========================
+  %% Compute
+  %% =========================
+  subgraph E[Compute]
+    EB[Elastic Beanstalk\nSingle instance • Node.js platform]
+    Nginx[nginx reverse proxy\nlistens 80/443]
+    App[Node/Express app\nREST API + serves static from /server/public]
+    Hooks[".platform postdeploy hooks\n• Let’s Encrypt TLS\n• Render nginx conf\n• Reload nginx"]
+    Logs["Instance Logs\n/var/log/nginx/*\n/var/log/web.stdout.log\n/var/log/eb-engine.log\n/var/log/eb-hooks.log"]
+    EB --- Nginx
+    Nginx --- App
+    EB --- Hooks
+    EB --- Logs
+  end
+  class E legend
+
+  %% =========================
+  %% Data
+  %% =========================
+  subgraph B[Data]
+    Mongoose[Mongoose (driver)]
+    Atlas[(MongoDB Atlas)]
+    IPAllow[IP allowlist\n• EB egress\n• Admin/VPN IPs]
+    Mongoose --- Atlas
+    Atlas --- IPAllow
+  end
+  class B legend
+
+  %% =========================
+  %% CI / CD
+  %% =========================
+  subgraph CI[CI / CD]
+    GH[GitHub Actions]
+    OIDC[OIDC: Assume AWS IAM Role\n(no long-lived keys)]
+    Build[Build & Package\n• Next.js static export\n• copy client/out → server/public\n• zip server/]
+    S3[(S3 releases bucket)]
+    EBVer[Create EB App Version\n+ Update Environment]
+    Tests[Post-deploy tests\n• Newman (API)\n• Cypress (UI)]
+    GH -->|assume role| OIDC
+    OIDC -->|AWS API| S3
+    GH -->|build| Build
+    Build -->|upload artifact| S3
+    S3 -->|create version| EBVer
+    EBVer -->|deploy| EB
+    GH -->|run| Tests
+  end
+  class CI legend
+
+  %% =========================
+  %% Security & Monitoring Callouts
+  %% =========================
+  subgraph S[Security & Monitoring]
+    Secrets[No secrets in repo\nUse EB env vars:\nMONGO_URI, JWT_SECRET, ...]
+    HTTPS[HTTPS:\n• Let’s Encrypt on instance today\n• CloudFront/ACM recommended for prod]
+    SG[Security Groups:\nInbound 80/443 only; restrict egress]
+    CWL[(CloudWatch Logs & Alarms)\n(optional: stream nginx/app/EB logs)]
+  end
+  class S legend
+
+  %% =========================
+  %% Primary Request Path (L→R)
+  %% =========================
+  Browser -->|DNS query| R53
+
+  %% Optional CDN fronting EB
+  R53 -.->|Alias / CNAME| CF
+  class CF optional
+
+  %% If CloudFront is used → EB; else Route53 → EB directly
+  CF -.->|HTTP(S)| EB
+  class CF optional
+  R53 -->|CNAME → EB env| EB
+
+  %% Inside EB
+  EB -->|HTTP(S)| Nginx
+  Nginx -->|/ → static SPA\n/api → upstream| App
+  App -->|Mongoose connection| Mongoose
+  Mongoose -->|TLS| Atlas
+
+  %% CI/CD against deployed URL
+  Tests -->|hit public URL| R53
+
+  %% Callouts connections
+  Secrets -. protects .- GH
+  Secrets -. governs .- EB
+  HTTPS -. TLS termination .- Nginx
+  SG -. controls .- EB
+  Logs -. stream (optional) .- CWL
+
+  %% Emphasis Note
+  Note1{{"SPA is statically exported and served by nginx on the EB instance.\nNode/Express handles REST API."}}
+  Note1:::callout
+  Nginx --- Note1
+
+```mermaid
 **Current flow**
 
 1. **Browser (SPA)** → static assets served by **nginx** on the EB instance (from `server/public`)
