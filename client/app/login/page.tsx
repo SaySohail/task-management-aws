@@ -156,14 +156,14 @@ export default function Page() {
             />
           </LabelInputContainer>
 
-          <div className="flex items-center justify-between pt-1">
+          {/* <div className="flex items-center justify-between pt-1">
             <Link
               href="/forgot-password"
               className="text-sm text-blue-600 underline-offset-4 hover:underline dark:text-blue-400"
             >
               Forgot password?
             </Link>
-          </div>
+          </div> */}
 
           <button
             type="submit"
@@ -186,7 +186,7 @@ export default function Page() {
           <div className="my-8 h-[1px] w-full bg-gradient-to-r from-transparent via-neutral-300 to-transparent dark:via-neutral-700" />
 
           {/* Social logins (optional placeholders) */}
-          <div className="flex flex-col gap-3">
+          {/* <div className="flex flex-col gap-3">
             <button
               type="button"
               className="group/btn shadow-input relative flex h-10 w-full items-center justify-start space-x-2 rounded-md bg-gray-50 px-4 font-medium text-black dark:bg-zinc-900 dark:text-white dark:shadow-[0px_0px_1px_1px_#262626]"
@@ -207,7 +207,7 @@ export default function Page() {
               </span>
               <BottomGradient />
             </button>
-          </div>
+          </div> */}
 
           <p className="pt-6 text-center text-sm text-neutral-700 dark:text-neutral-300">
             Don&apos;t have an account?{" "}
