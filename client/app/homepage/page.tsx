@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState, useMemo, lazy, Suspense } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { AuroraBackground } from "@/components/ui/aurora-background";
 import Hero from "@/components/Hero";
 import Link from "next/link";
 import { useTheme } from "next-themes";
@@ -41,6 +40,50 @@ const ScrollSkeleton = () => (
 const CTASkeleton = () => (
   <div className="w-full h-32 bg-gray-200 dark:bg-gray-800 animate-pulse rounded-lg" />
 );
+
+/* ---------- Kanban-Style Gradient Background Component ---------- */
+const GradientBackground = React.memo(function GradientBackground({
+  children,
+  className = "",
+  enableAnimation = true,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  enableAnimation?: boolean;
+}) {
+  return (
+    <div className={`relative min-h-screen ${className}`}>
+      {/* Aurora Background - similar to Kanban */}
+      <div className="pointer-events-none fixed inset-0 z-0">
+        <div 
+          className={`absolute inset-0 bg-gradient-to-br from-blue-500/20 via-indigo-500/20 to-violet-500/20 ${
+            enableAnimation ? "md:animate-pulse" : ""
+          }`} 
+        />
+        <div 
+          className={`absolute left-1/4 top-0 h-80 w-80 rounded-full bg-blue-500/30 blur-3xl md:h-96 md:w-96 ${
+            enableAnimation ? "md:animate-pulse" : ""
+          }`} 
+        />
+        <div 
+          className={`absolute right-1/4 top-1/2 h-64 w-64 rounded-full bg-indigo-500/30 blur-3xl md:h-80 md:w-80 ${
+            enableAnimation ? "md:animate-pulse md:delay-1000" : ""
+          }`} 
+        />
+        <div 
+          className={`absolute left-1/2 bottom-1/4 h-60 w-60 rounded-full bg-violet-500/30 blur-3xl md:h-72 md:w-72 ${
+            enableAnimation ? "md:animate-pulse md:delay-2000" : ""
+          }`} 
+        />
+      </div>
+
+      {/* Content */}
+      <div className="relative z-10">
+        {children}
+      </div>
+    </div>
+  );
+});
 
 /* ---------- Optimized theme toggle with reduced renders ---------- */
 const ThemeToggle = React.memo(function ThemeToggle({
@@ -106,7 +149,7 @@ const ThemeToggle = React.memo(function ThemeToggle({
   );
 });
 
-export default function AuroraBackgroundDemo() {
+export default function GradientBackgroundDemo() {
   const shouldReduceMotion = useReducedMotion();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLowPerformanceDevice, setIsLowPerformanceDevice] = useState(false);
@@ -175,16 +218,14 @@ export default function AuroraBackgroundDemo() {
     return defaultProps;
   };
 
-  // Conditional AuroraBackground for very low-end devices
-  const BackgroundWrapper = isLowPerformanceDevice ? 
-    ({ children, className }: { children: React.ReactNode, className: string }) => (
-      <div className={`${className} bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 min-h-screen`}>
-        {children}
-      </div>
-    ) : AuroraBackground;
+  // Determine if animations should be enabled
+  const enableAnimations = !shouldReduceMotion && !isLowPerformanceDevice;
 
   return (
-    <BackgroundWrapper className="text-gray-900 dark:text-white">
+    <GradientBackground 
+      className="text-gray-900 dark:text-white" 
+      enableAnimation={enableAnimations}
+    >
       {/* Anchor for scrolling to top */}
       <div id="top" />
 
@@ -342,6 +383,6 @@ export default function AuroraBackgroundDemo() {
           </section>
         </main>
       </motion.div>
-    </BackgroundWrapper>
+    </GradientBackground>
   );
 }
